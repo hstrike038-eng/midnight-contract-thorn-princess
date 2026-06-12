@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Yor Forger: Midnight Contract</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="game-shell">
+      <canvas id="game" width="960" height="540" tabindex="0" aria-label="Thorn Princess 90s FPS game"></canvas>
+      <div class="scanlines" aria-hidden="true"></div>
+      <div class="vignette" aria-hidden="true"></div>
+
+      <section class="hud" aria-live="polite">
+        <div class="hud-cell hud-panel">
+          <span>Health</span>
+          <strong id="health">100</strong>
+          <div class="health-track" aria-hidden="true">
+            <div id="health-fill" class="health-fill"></div>
+          </div>
+        </div>
+        <div id="face" class="face" role="img" aria-label="Yor status portrait" data-mood="ok">
+          <div class="face-hair"></div>
+          <div class="face-bangs"></div>
+          <div class="face-head">
+            <span class="face-brow face-brow-left"></span>
+            <span class="face-brow face-brow-right"></span>
+            <span class="face-eye face-eye-left"></span>
+            <span class="face-eye face-eye-right"></span>
+            <span class="face-blush face-blush-left"></span>
+            <span class="face-blush face-blush-right"></span>
+            <span class="face-nose"></span>
+            <span class="face-mouth"></span>
+            <span class="face-mark"></span>
+            <span class="face-wound"></span>
+          </div>
+          <div class="face-collar"></div>
+        </div>
+        <div class="hud-cell hud-panel">
+          <span>Contract</span>
+          <strong id="contract">0/0</strong>
+          <small id="rank-line">Rank S</small>
+          <small id="passive-line">Thorn x1.0</small>
+        </div>
+        <strong id="rank" class="visually-hidden">S</strong>
+      </section>
+
+      <section id="panel" class="panel">
+        <h1>Yor Forger</h1>
+        <p>Thorn Princess: Midnight Contract</p>
+        <button id="start" type="button">Start Run</button>
+      </section>
+    </main>
+
+    <script src="main.js" defer></script>
+  </body>
+</html>
