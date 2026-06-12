@@ -70,6 +70,7 @@
     attackTimer: 0,
     throwTimer: 0,
     hurtTimer: 0,
+    healTimer: 0,
     facePulse: 0,
     bob: 0,
     dashTimer: 0,
@@ -92,16 +93,13 @@
     makeEnemy(3.5, 7.5, "Mask Duelist"),
     makeEnemy(7.5, 8.3, "Midnight Rook"),
     makeEnemy(13.4, 10.4, "Poison Clerk"),
-    makeEnemy(2.8, 14.5, "Thorn Rival"),
-    makeEnemy(10.5, 15.5, "Umbra Tailor"),
-    makeEnemy(16.2, 17.1, "Last Contract"),
   ];
 
   const pickups = [
-    { x: 6.5, y: 5.5, type: "tea", active: true },
-    { x: 15.4, y: 8.5, type: "rose", active: true },
-    { x: 5.5, y: 13.5, type: "tea", active: true },
-    { x: 11.5, y: 17.5, type: "rose", active: true },
+    { x: 6.5, y: 5.5, type: "medkit", active: true },
+    { x: 15.4, y: 8.5, type: "medkit", active: true },
+    { x: 5.5, y: 13.5, type: "medkit", active: true },
+    { x: 11.5, y: 17.5, type: "medkit", active: true },
   ];
 
   const keys = new Set();
@@ -242,7 +240,9 @@
     player.health = 100;
     player.rank = "S";
     player.attackTimer = 0;
+    player.throwTimer = 0;
     player.hurtTimer = 0;
+    player.healTimer = 0;
     player.facePulse = 0;
     player.kills = 0;
     player.dashTimer = 0;
@@ -319,9 +319,9 @@
       if (player.kills === enemies.length) {
         won = true;
         running = false;
-        showMessage("All contracts closed", 8);
-        panel.querySelector("h1").textContent = "Mission Clear";
-        panel.querySelector("p").textContent = "Thorn Princess";
+        showMessage("Target has been pruned", 8);
+        panel.querySelector("h1").textContent = "Mission Complete";
+        panel.querySelector("p").textContent = "Target has been pruned";
         startButton.textContent = "Run Again";
         panel.hidden = false;
       }
@@ -350,6 +350,7 @@
     if (player.attackTimer > 0) player.attackTimer -= dt;
     if (player.throwTimer > 0) player.throwTimer -= dt;
     if (player.hurtTimer > 0) player.hurtTimer -= dt;
+    if (player.healTimer > 0) player.healTimer -= dt;
     if (player.facePulse > 0) player.facePulse -= dt;
     if (player.dashTimer > 0) player.dashTimer -= dt;
 
@@ -380,9 +381,9 @@
               if (player.kills === enemies.length) {
                 won = true;
                 running = false;
-                showMessage("All contracts closed", 8);
-                panel.querySelector("h1").textContent = "Mission Clear";
-                panel.querySelector("p").textContent = "Thorn Princess";
+                showMessage("Target has been pruned", 8);
+                panel.querySelector("h1").textContent = "Mission Complete";
+                panel.querySelector("p").textContent = "Target has been pruned";
                 startButton.textContent = "Run Again";
                 panel.hidden = false;
               }
@@ -433,10 +434,11 @@
       if (Math.hypot(pickup.x - player.x, pickup.y - player.y) > 0.55) continue;
 
       pickup.active = false;
-      if (pickup.type === "tea") {
-        player.health = Math.min(100, player.health + 24);
-        showMessage("Tea break secured", 1.6);
-        beep(660, 0.08, "triangle", 0.035);
+        if (pickup.type === "medkit") {
+        player.health = Math.min(100, player.health + 32);
+        player.healTimer = 0.9;
+        showMessage("Medkit secured", 1.6);
+        beep(760, 0.1, "triangle", 0.045);
       } else {
         enemies.forEach((enemy) => {
           if (enemy.alive && Math.hypot(enemy.x - player.x, enemy.y - player.y) < 4) enemy.alert = true;
@@ -472,7 +474,7 @@
         moveBody(enemy, (dx / dist) * speed, (dy / dist) * speed);
       } else if (enemy.cooldown <= 0) {
         enemy.cooldown = 1.2 + Math.random() * 0.55;
-        damagePlayer(9 + Math.floor(Math.random() * 7));
+        damagePlayer(8);
       }
     }
   }
@@ -681,13 +683,13 @@
   function drawPickup(pickup, x, y, size) {
     btx.save();
     btx.globalAlpha = 0.9;
-    if (pickup.type === "tea") {
+    if (pickup.type === "medkit") {
       btx.fillStyle = "#ece4d4";
-      btx.fillRect(x, y + size * 0.3, size, size * 0.5);
-      btx.fillStyle = "#b33a42";
-      btx.fillRect(x + size * 0.15, y + size * 0.42, size * 0.7, size * 0.12);
-      btx.fillStyle = "#f6c945";
-      btx.fillRect(x + size * 0.76, y + size * 0.42, size * 0.28, size * 0.1);
+      btx.fillRect(x, y + size * 0.2, size, size * 0.6);
+      btx.fillStyle = "#c52d3a";
+      const bar = size * 0.18;
+      btx.fillRect(x + size * 0.41, y + size * 0.26, bar, size * 0.48);
+      btx.fillRect(x + size * 0.26, y + size * 0.42, size * 0.48, bar);
     } else {
       btx.fillStyle = "#c52d3a";
       btx.fillRect(x + size * 0.28, y + size * 0.1, size * 0.44, size * 0.44);
@@ -828,6 +830,12 @@
     drawMinimap();
     drawMessages();
 
+    if (player.healTimer > 0) {
+      const alpha = 0.12 + player.healTimer * 0.18;
+      btx.fillStyle = `rgba(118, 208, 140, ${alpha})`;
+      btx.fillRect(0, 0, VIEW_W, VIEW_H);
+    }
+
     if (player.hurtTimer > 0) {
       btx.fillStyle = `rgba(197, 45, 58, ${0.2 + player.hurtTimer * 0.25})`;
       btx.fillRect(0, 0, VIEW_W, VIEW_H);
@@ -868,6 +876,12 @@
       btx.fillRect(ox + enemy.x * scale - 1, oy + enemy.y * scale - 1, 2, 2);
     }
 
+    for (const pickup of pickups) {
+      if (!pickup.active) continue;
+      btx.fillStyle = pickup.type === "medkit" ? "#3c8d58" : "#f6c945";
+      btx.fillRect(ox + pickup.x * scale - 1, oy + pickup.y * scale - 1, 3, 3);
+    }
+
     btx.fillStyle = "#f6c945";
     btx.fillRect(ox + player.x * scale - 1, oy + player.y * scale - 1, 3, 3);
   }
@@ -899,8 +913,9 @@
     rankLineEl.textContent = `Rank ${player.rank}`;
     passiveLineEl.textContent = `Thorn x${formatMultiplier(multiplier)}`;
     faceEl.dataset.mood =
-      player.health <= 0 ? "dead" : player.hurtTimer > 0 ? "hurt" : player.health < 28 ? "low" : player.health < 58 ? "wary" : "ok";
+      player.health <= 0 ? "dead" : player.healTimer > 0 ? "heal" : player.hurtTimer > 0 ? "hurt" : player.health < 28 ? "low" : player.health < 58 ? "wary" : "ok";
     faceEl.classList.toggle("is-striking", player.facePulse > 0 && player.health > 0);
+    faceEl.classList.toggle("is-healing", player.healTimer > 0 && player.health > 0);
   }
 
   function loop(now) {

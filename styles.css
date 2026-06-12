@@ -538,6 +538,40 @@ button {
   animation: none;
 }
 
+.face[data-mood="heal"] .face-head {
+  background:
+    radial-gradient(circle at 50% 45%, rgba(118, 208, 140, 0.34), transparent 17%),
+    linear-gradient(#f6f3dc, #d5ddb0);
+}
+
+.face[data-mood="heal"] .face-eye {
+  background:
+    radial-gradient(circle at 64% 30%, #fcfff8 0 12%, transparent 13%),
+    linear-gradient(#8fb78e, #4c6a51);
+}
+
+.face[data-mood="heal"] .face-mouth {
+  border-bottom-color: #3c6e4c;
+}
+
+.face[data-mood="heal"] .face-blush {
+  opacity: 0.55;
+  background: rgba(118, 208, 140, 0.3);
+}
+
+.face.is-healing {
+  box-shadow: inset 0 0 0 2px rgba(118, 208, 140, 0.18), 0 0 18px rgba(118, 208, 140, 0.18);
+}
+
+.face[data-mood="heal"] .face-eye {
+  height: 10px;
+  top: 24px;
+}
+
+.face[data-mood="heal"] .face-wound {
+  opacity: 0;
+}
+
 .face[data-mood="hurt"] .face-eye {
   height: 5px;
   top: 27px;
