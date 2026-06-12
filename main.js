@@ -21,6 +21,8 @@
   const MAX_DEPTH = 18;
   const TILE = 1;
   const TWO_PI = Math.PI * 2;
+  const THROW_SPEED = 9;
+  const THROW_RANGE = 12;
 
   canvas.width = VIEW_W * SCALE;
   canvas.height = VIEW_H * SCALE;
@@ -66,11 +68,21 @@
     health: 100,
     rank: "S",
     attackTimer: 0,
+    throwTimer: 0,
     hurtTimer: 0,
     facePulse: 0,
     bob: 0,
     dashTimer: 0,
     kills: 0,
+  };
+
+  const thrownWeapon = {
+    active: false,
+    x: 0,
+    y: 0,
+    dx: 0,
+    dy: 0,
+    travelled: 0,
   };
 
   const enemies = [
@@ -256,12 +268,25 @@
       if (player.health <= 0 || won) restartGame();
       return;
     }
-    if (player.attackTimer > 0) return;
+    if (player.attackTimer > 0 || player.throwTimer > 0) return;
+
+    const forwardX = Math.cos(player.angle);
+    const forwardY = Math.sin(player.angle);
+    const throwX = player.x + forwardX * 0.6;
+    const throwY = player.y + forwardY * 0.6;
 
     player.attackTimer = 0.34;
+    player.throwTimer = 0.9;
     player.facePulse = 0.18;
     beep(150, 0.035, "sawtooth", 0.035);
     beep(520, 0.04, "square", 0.025);
+
+    thrownWeapon.active = true;
+    thrownWeapon.x = throwX;
+    thrownWeapon.y = throwY;
+    thrownWeapon.dx = forwardX * THROW_SPEED;
+    thrownWeapon.dy = forwardY * THROW_SPEED;
+    thrownWeapon.travelled = 0;
 
     let best = null;
     let bestDist = Infinity;
@@ -323,9 +348,50 @@
 
   function update(dt) {
     if (player.attackTimer > 0) player.attackTimer -= dt;
+    if (player.throwTimer > 0) player.throwTimer -= dt;
     if (player.hurtTimer > 0) player.hurtTimer -= dt;
     if (player.facePulse > 0) player.facePulse -= dt;
     if (player.dashTimer > 0) player.dashTimer -= dt;
+
+    if (thrownWeapon.active) {
+      const moveX = thrownWeapon.dx * dt;
+      const moveY = thrownWeapon.dy * dt;
+      thrownWeapon.x += moveX;
+      thrownWeapon.y += moveY;
+      thrownWeapon.travelled += Math.hypot(moveX, moveY);
+
+      if (thrownWeapon.travelled >= THROW_RANGE || isWall(thrownWeapon.x, thrownWeapon.y)) {
+        thrownWeapon.active = false;
+      } else {
+        for (const enemy of enemies) {
+          if (!enemy.alive) continue;
+          const dist = Math.hypot(enemy.x - thrownWeapon.x, enemy.y - thrownWeapon.y);
+          if (dist < 0.35) {
+            const damage = getStrikeDamage() * 1.25;
+            enemy.hp -= damage;
+            enemy.hurt = 0.22;
+            enemy.alert = true;
+            showMessage(enemy.hp <= 0 ? `${enemy.name} impaled` : `${enemy.name} struck`, 1.45);
+            beep(enemy.hp <= 0 ? 92 : 260, enemy.hp <= 0 ? 0.14 : 0.07, "sawtooth", 0.05);
+            thrownWeapon.active = false;
+            if (enemy.hp <= 0) {
+              enemy.alive = false;
+              player.kills += 1;
+              if (player.kills === enemies.length) {
+                won = true;
+                running = false;
+                showMessage("All contracts closed", 8);
+                panel.querySelector("h1").textContent = "Mission Clear";
+                panel.querySelector("p").textContent = "Thorn Princess";
+                startButton.textContent = "Run Again";
+                panel.hidden = false;
+              }
+            }
+            break;
+          }
+        }
+      }
+    }
 
     for (const message of messages) message.ttl -= dt;
     while (messages.length && messages[messages.length - 1].ttl <= 0) messages.pop();
@@ -528,6 +594,16 @@
       ...enemies.filter((enemy) => enemy.alive).map((enemy) => ({ ...enemy, sprite: "enemy" })),
     ];
 
+    if (thrownWeapon.active) {
+      sprites.push({
+        x: thrownWeapon.x,
+        y: thrownWeapon.y,
+        sprite: "thrown",
+        dx: thrownWeapon.dx,
+        dy: thrownWeapon.dy,
+      });
+    }
+
     sprites.sort((a, b) => distanceTo(b) - distanceTo(a));
 
     for (const sprite of sprites) {
@@ -539,15 +615,17 @@
       if (Math.abs(angle) > FOV * 0.72 || dist < 0.15) continue;
 
       const screenX = VIEW_W / 2 + Math.tan(angle) * (VIEW_W / FOV);
-      const size = clamp((VIEW_H / dist) * (sprite.sprite === "enemy" ? 0.82 : 0.36), 3, 118);
+      const size = clamp((VIEW_H / dist) * (sprite.sprite === "enemy" ? 0.82 : sprite.sprite === "thrown" ? 0.24 : 0.36), 2, 118);
       const x = Math.floor(screenX - size / 2);
-      const y = Math.floor(VIEW_H / 2 - size * (sprite.sprite === "enemy" ? 0.55 : 0.08));
+      const y = Math.floor(VIEW_H / 2 - size * (sprite.sprite === "enemy" ? 0.55 : sprite.sprite === "thrown" ? 0.2 : 0.08));
 
       const column = clamp(Math.floor(screenX), 0, VIEW_W - 1);
       if (dist > zBuffer[column] + 0.25) continue;
 
       if (sprite.sprite === "enemy") {
         drawEnemy(sprite, x, y, size, dist);
+      } else if (sprite.sprite === "thrown") {
+        drawThrownWeapon(sprite, x, y, size, dist);
       } else {
         drawPickup(sprite, x, y, size);
       }
@@ -712,6 +790,31 @@
     btx.moveTo(tipX, tipY);
     btx.lineTo(tipX - side * 34 * thrust, tipY + 18 * thrust);
     btx.lineTo(tipX - side * 9 * thrust, tipY + 42 * thrust);
+    btx.fill();
+
+    btx.restore();
+  }
+
+  function drawThrownWeapon(sprite, x, y, size, dist) {
+    const angle = normalizeAngle(Math.atan2(sprite.y - player.y, sprite.x - player.x) - player.angle);
+    btx.save();
+    btx.translate(x + size / 2, y + size / 2);
+    btx.rotate(angle);
+
+    btx.fillStyle = "#f6c945";
+    btx.strokeStyle = "#ffffff";
+    btx.lineWidth = 1.5;
+    btx.beginPath();
+    btx.moveTo(-size * 0.4, -size * 0.16);
+    btx.lineTo(size * 0.3, 0);
+    btx.lineTo(-size * 0.4, size * 0.16);
+    btx.closePath();
+    btx.fill();
+    btx.stroke();
+
+    btx.fillStyle = "rgba(246, 201, 69, 0.8)";
+    btx.beginPath();
+    btx.arc(-size * 0.25, 0, Math.max(1, size * 0.08), 0, TWO_PI);
     btx.fill();
 
     btx.restore();
